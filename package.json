@@ -1,0 +1,22 @@
+{
+  "name": "web-absensi",
+  "version": "0.1.0",
+  "description": "Web absensi kamera with Google Drive sync",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js"
+  },
+  "keywords": [],
+  "author": "hamunaputra89",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "googleapis": "^131.0.0",
+    "sqlite3": "^5.1.6",
+    "body-parser": "^1.20.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}

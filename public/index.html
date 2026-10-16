@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Absensi Kamera - MVP</title>
+  <script defer src="https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <style>
+    body{font-family: Arial, Helvetica, sans-serif; padding:20px}
+    video{border:1px solid #ccc}
+  </style>
+</head>
+<body>
+  <h1>Absensi Kamera (MVP)</h1>
+  <video id="video" width="320" height="240" autoplay muted></video>
+  <div>
+    <input id="name" placeholder="Nama (untuk enroll)"/>
+    <button id="enroll">Enroll</button>
+    <button id="checkin">Check-in</button>
+  </div>
+  <div id="log"></div>
+
+  <script>
+    const video = document.getElementById('video');
+    const log = msg => { console.log(msg); document.getElementById('log').innerText = msg; };
+
+    async function start() {
+      await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+      await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+      await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+    }
+    start();
+
+    function captureFrame() {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 320;
+      canvas.height = video.videoHeight || 240;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.8);
+    }
+
+    document.getElementById('enroll').onclick = async () => {
+      const name = document.getElementById('name').value.trim();
+      if (!name) return alert('Masukkan nama untuk enroll');
+      log('Mendeteksi wajah...');
+      const img = await faceapi.fetchImage(captureFrame());
+      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+      if (!detection) return alert('Wajah tidak terdeteksi. Coba lagi.');
+      log('Mengirim enroll ke server...');
+      fetch('/enroll', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ name, descriptor: Array.from(detection.descriptor), photo: captureFrame() })
+      }).then(r=>r.json()).then(j=>log(j.message)).catch(e=>alert(e));
+    };
+
+    document.getElementById('checkin').onclick = async () => {
+      log('Mendeteksi wajah...');
+      const img = await faceapi.fetchImage(captureFrame());
+      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+      if (!detection) return alert('Wajah tidak terdeteksi. Coba lagi.');
+      log('Mengirim check-in ke server...');
+      fetch('/checkin', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ descriptor: Array.from(detection.descriptor), photo: captureFrame() })
+      }).then(r=>r.json()).then(j=>{
+        if (j.success) log('Absensi sukses: ' + j.name);
+        else log('Tidak cocok: ' + j.message);
+      }).catch(e=>alert(e));
+    };
+  </script>
+</body>
+</html>
